@@ -1,0 +1,9 @@
+----------------------------------------------------
+Host : 127.0.0.1 (localhost)
+State : up
+Timestamp: 2017-06-15T17:36:10Z
+----------
+Protocol : tcp
+port : 631			state : open
+port : 2222			state : open
+
