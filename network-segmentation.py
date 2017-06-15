@@ -74,12 +74,12 @@ def scan():
         #Wait 5 minutes every network block (does wait before first one)
         if block_count > 1:
             print "Waiting 5 minutes.."
-            time.sleep(60)
+            time.sleep(300)
             print "Continuing.."
         block_count += 1
         summary.write("Scanned: " + ip + "\n")
         for host in hosts:
-            date = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+            date = datetime.datetime.utcnow().strftime("%m-%d-%YT%H:%M:%SZ")
             print "Scanning Host: " + host + "\nFrom Network: " + network + "\nTimestamp: " + date + "\n"
             #If more than 10 ips have been scanned, then wait 1 minute
             if count > 10:
@@ -107,7 +107,7 @@ def scan():
                             else:
                                 ports_to_scan += ',' + port
                         #Port Scan (will take about 8 minutes for each ip)
-                        nm.scan(hosts=host, arguments='-T2 -p ' + ports_to_scan)
+                        nm.scan(hosts=host, arguments='-T1 -p ' + ports_to_scan)
                         for host in nm.all_hosts():
                             output_file.write('----------------------------------------------------\n')
                             print '----------------------------------------------------'
