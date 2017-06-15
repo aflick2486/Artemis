@@ -25,15 +25,15 @@ def scan():
         print('Unexpected Error:', sys.exc_info()[0])
         sys.exit(2)
 
-    #Read the network blocks (127.0.0.1/30) and names(VFW-PCI) from a file
-    #with open('/Users/aflickem/Desktop/Automation-Scripts/Network_Segmentation/pci_hosts.rtf') as f:
-    #    hosts = f.readlines()
+    #Read the network blocks (127.0.0.1/30) and names(local-net) from a file
+    with open('/Users/aflickem/Desktop/Automation-Scripts/Network_Segmentation/hosts.txt') as f:
+        hosts = f.readlines()
     host_network = {"127.0.0.0/30": "local-net"}
     #For each network block/name, split into the block and the name and put into dictionary
-    #for host in hosts:
-    #    ip, net = host.split(" ", 1)
-    #    net = net.rstrip()
-    #    host_network[ip] = net
+    for host in hosts:
+        ip, net = host.split(" ", 1)
+        net = net.rstrip()
+        host_network[ip] = net
     #For each key, value in the dictionary
     for ip, network in host_network.iteritems():
         block_count = 1
@@ -44,11 +44,9 @@ def scan():
         #Wait 5 minutes every network block (does wait before first one)
         if block_count != 1:
             time.sleep(300)
-        output_file = open("/Users/aflickem/Desktop/Automation-Scripts/Network_Segmentation/" + network + ".txt", "w")
         block_count += 1
         for host in hosts:
             date = datetime.datetime.now().strftime("%a %b %d %H:%M:%S %Z %Y")
-            output_file.write("Scanning Host: " + host + "\nFrom Network: " + network + "\nTimestamp: " + date + "\n")
             print "Scanning Host: " + host + "\nFrom Network: " + network + "\nTimestamp: " + date + "\n"
             #If more than 10 ips have been scanned, then wait 1 minute
             if count > 10:
@@ -61,10 +59,10 @@ def scan():
                 hosts_list = [(x, nm[x]['status']['state']) for x in nm.all_hosts()]
                 for host, status in hosts_list:
                     #Print out if it is up
-                    output_file.write('{0}: {1}\n'.format(host, status))
                     print '{0}: {1}'.format(host, status)
                     #If up, run a port scan on the ip
                     if status == 'up':
+                        output_file = open("/Users/aflickem/Desktop/Automation-Scripts/Network_Segmentation/" + network + "_OPEN.txt", "w")
                         with open('/Users/aflickem/Desktop/Automation-Scripts/Network_Segmentation/ports_to_scan.rtf') as f:
                             ports = f.readlines()
                         ports_to_scan = ''
@@ -95,7 +93,7 @@ def scan():
                         for port in lport:
                             output_file.write('port : %s\tstate : %s\n' % (port, nm[host][proto][port]['state']))
                             print 'port : %s\tstate : %s' % (port, nm[host][proto][port]['state'])
-                output_file.write("\n")
+                        output_file.write("\n")
                 count += 1
         output_file.close()
 #Turn the ip into binary
