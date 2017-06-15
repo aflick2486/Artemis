@@ -35,6 +35,8 @@ def scan():
         net = net.rstrip()
         host_network[ip] = net
     #For each key, value in the dictionary
+    path = os.path.dirname(os.path.realpath('__file__'))
+    summary = open(path + "/logs/summary.log", "w")
     for ip, network in host_network.iteritems():
         block_count = 1
         hosts = []
@@ -45,6 +47,7 @@ def scan():
         if block_count != 1:
             time.sleep(300)
         block_count += 1
+        summary.write("Scanned: " + ip + "\n")
         for host in hosts:
             date = datetime.datetime.now().strftime("%a %b %d %H:%M:%S %Z %Y")
             print "Scanning Host: " + host + "\nFrom Network: " + network + "\nTimestamp: " + date + "\n"
@@ -62,8 +65,8 @@ def scan():
                     print '{0}: {1}'.format(host, status)
                     #If up, run a port scan on the ip
                     if status == 'up':
-                        output_file = open("/Users/aflickem/Desktop/Automation-Scripts/Network_Segmentation/" + network + "_OPEN.txt", "w")
-                        with open('/Users/aflickem/Desktop/Automation-Scripts/Network_Segmentation/ports_to_scan.rtf') as f:
+                        output_file = open(path + "/logs/" + network + "_OPEN.txt", "w")
+                        with open(path + '/ports_to_scan.txt') as f:
                             ports = f.readlines()
                         ports_to_scan = ''
                         for port in ports:
@@ -73,7 +76,7 @@ def scan():
                             else:
                                 ports_to_scan += ',' + port
                         #Port Scan (will take about 8 minutes)
-                        nm.scan(hosts=host, arguments='-T2 -p ' + ports_to_scan)
+                        nm.scan(hosts=host, arguments='-T1 -p ' + ports_to_scan)
                         for host in nm.all_hosts():
                             output_file.write('----------------------------------------------------\n')
                             print '----------------------------------------------------'
@@ -89,13 +92,17 @@ def scan():
                                 print 'Protocol : %s' % proto
                                 #Print the open ports in numerical order
                                 lport = nm[host][proto].keys()
+                            summary.write('---------------\n' + host + "\n---------------\n")
                         lport.sort()
                         for port in lport:
                             output_file.write('port : %s\tstate : %s\n' % (port, nm[host][proto][port]['state']))
                             print 'port : %s\tstate : %s' % (port, nm[host][proto][port]['state'])
+                            summary.write(str(port) + " is open.\n")
                         output_file.write("\n")
                 count += 1
         output_file.close()
+        summary.write("\n")
+    summary.close()
 #Turn the ip into binary
 def ip2bin(ip):
     b = ""
