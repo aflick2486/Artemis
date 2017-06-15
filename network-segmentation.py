@@ -8,15 +8,37 @@
 #############################
 
 import datetime
-import time
+from getopt import getopt, GetoptError
 import nmap
-import sys
 import os
+import sys
+import time
+
+version = '2.0'
+
+def usage():
+    print """Network Segmentation Testing Script v%s
+
+usage: %s
+
+-i [filename], --import_hosts [filename]
+    Specify hosts list filename.
+
+"""%(version, sys.argv[0])
+
 
 def scan():
+    if len(sys.argv[1:]) == 0:
+        usage()
+        sys.exit(0)
     try:
-        nm = nmap.PortScanner() #Represent PortScanner objecy
-
+        opts, args = getopt(sys.argv[1:], 'hi:', ["help", "input="])
+    except GetoptError as e:
+        print e
+        usage()
+        sys.exit(2)
+    try:
+        nm = nmap.PortScanner() #Represent PortScanner object
     except nmap.PortScannerError:
         #If nmap and python-nmap aren't installed
         print("Nmap not found", sys.exc_info()[0])
@@ -24,36 +46,46 @@ def scan():
     except:
         print('Unexpected Error:', sys.exc_info()[0])
         sys.exit(2)
-
-    #Read the network blocks (127.0.0.1/30) and names(local-net) from a file
-    with open('/Users/aflickem/Desktop/Automation-Scripts/Network_Segmentation/hosts.txt') as f:
-        hosts = f.readlines()
+    for o,a in opts:
+        if o in ("-h", "--help"):
+            usage()
+            sys.exit(0)
+        elif o in ("-i", "--input_hosts"):
+            #Read the network blocks (127.0.0.1/30) and names(local-net) from a file
+            hosts_file = a
+            with open(a) as f:
+                hosts = f.readlines()
     host_network = {}
     #For each network block/name, split into the block and the name and put into dictionary
     for host in hosts:
         ip, net = host.split(" ", 1)
         net = net.rstrip()
         host_network[ip] = net
-    #For each key, value in the dictionary
+    #Get the path that the script is located in and use that path to open files
     path = os.path.dirname(os.path.realpath('__file__'))
     summary = open(path + "/logs/summary.log", "w")
+    #For each key, value in the dictionary
+    block_count = 1
     for ip, network in host_network.iteritems():
-        block_count = 1
         hosts = []
         #Determine each IP in the network block
         hosts = returnCIDR(ip)
         count = 0
         #Wait 5 minutes every network block (does wait before first one)
-        if block_count != 1:
+        if block_count > 1:
+            print "Waiting 5 minutes.."
             time.sleep(300)
+            print "Continuing.."
         block_count += 1
         summary.write("Scanned: " + ip + "\n")
         for host in hosts:
-            date = datetime.datetime.now().strftime("%a %b %d %H:%M:%S %Z %Y")
+            date = datetime.datetime.utcnow().strftime("%m-%d-%YT%H:%M:%SZ")
             print "Scanning Host: " + host + "\nFrom Network: " + network + "\nTimestamp: " + date + "\n"
             #If more than 10 ips have been scanned, then wait 1 minute
             if count > 10:
+                print "Waiting 1 minute to not take a network down.."
                 time.sleep(60)
+                print "Continuing.."
                 count = 0
             else:
                 #Ping Scan
@@ -61,11 +93,10 @@ def scan():
                 nm.scan(hosts=host, arguments='-n -sP')
                 hosts_list = [(x, nm[x]['status']['state']) for x in nm.all_hosts()]
                 for host, status in hosts_list:
-                    #Print out if it is up
-                    print '{0}: {1}'.format(host, status)
                     #If up, run a port scan on the ip
                     if status == 'up':
-                        output_file = open(path + "/logs/" + network + "_OPEN.txt", "w")
+                        output = path+"/logs/"+network+"_"+date+"_OPEN.log"
+                        output_file = open(output, "w")
                         with open(path + '/ports_to_scan.txt') as f:
                             ports = f.readlines()
                         ports_to_scan = ''
@@ -75,7 +106,7 @@ def scan():
                                 ports_to_scan += port
                             else:
                                 ports_to_scan += ',' + port
-                        #Port Scan (will take about 8 minutes)
+                        #Port Scan (will take about 8 minutes for each ip)
                         nm.scan(hosts=host, arguments='-T1 -p ' + ports_to_scan)
                         for host in nm.all_hosts():
                             output_file.write('----------------------------------------------------\n')
@@ -83,6 +114,7 @@ def scan():
                             output_file.write('Host : %s (%s)\n' % (host, nm[host].hostname()))
                             print 'Host : %s (%s)' % (host, nm[host].hostname())
                             output_file.write('State : %s\n' % nm[host].state())
+                            output_file.write('Timestamp: ' + date + "\n")
                             print 'State : %s' % nm[host].state()
                             lport = []
                             for proto in nm[host].all_protocols():
@@ -92,16 +124,15 @@ def scan():
                                 print 'Protocol : %s' % proto
                                 #Print the open ports in numerical order
                                 lport = nm[host][proto].keys()
-                            summary.write('---------------\n' + host + "\n---------------\n")
+                            summary.write('---------------\n' + host + " is up.\n")
                         lport.sort()
                         for port in lport:
-                            output_file.write('port : %s\tstate : %s\n' % (port, nm[host][proto][port]['state']))
+                            output_file.write('port : %s\t\t\tstate : %s\n' % (port, nm[host][proto][port]['state']))
                             print 'port : %s\tstate : %s' % (port, nm[host][proto][port]['state'])
-                            summary.write(str(port) + " is open.\n")
                         output_file.write("\n")
+                        output_file.close()
                 count += 1
-        output_file.close()
-        summary.write("\n")
+        summary.write("-------------------------------------\n")
     summary.close()
 #Turn the ip into binary
 def ip2bin(ip):
