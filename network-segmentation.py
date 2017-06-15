@@ -28,7 +28,7 @@ def scan():
     #Read the network blocks (127.0.0.1/30) and names(local-net) from a file
     with open('/Users/aflickem/Desktop/Automation-Scripts/Network_Segmentation/hosts.txt') as f:
         hosts = f.readlines()
-    host_network = {"127.0.0.0/30": "local-net"}
+    host_network = {}
     #For each network block/name, split into the block and the name and put into dictionary
     for host in hosts:
         ip, net = host.split(" ", 1)
