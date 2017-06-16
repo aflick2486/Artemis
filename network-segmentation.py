@@ -33,6 +33,14 @@ usage: %s
 -p [filename], --ports_list [filename]
     Specify ports list filename.
 
+-e [interface name], --interface [interface name]
+    Specify the network interface on which to run the script.
+
+-s [speed number], --speed [speed number]
+    1 - Sneaky (Takes about 8 minutes per IP that is up)
+    2 - Polite (Takes about 14 seconds per IP)
+    3 - Normal (Takes about 1 second per IP)
+
 """%(version, sys.argv[0])
 
 def scan():
@@ -42,7 +50,7 @@ def scan():
         sys.exit(0)
     try:
         #Gather the options and arguments given
-        opts, args = getopt(sys.argv[1:], 'hi:p:', ["help", "import=", "ports="])
+        opts, args = getopt(sys.argv[1:], 'hi:p:e:s:', ["help", "import=", "ports=", "interface=", "speed="])
     except GetoptError as e:
         print e
         usage()
@@ -56,6 +64,8 @@ def scan():
     except:
         print('Unexpected Error:', sys.exc_info()[0])
         sys.exit(2)
+    interface = ''
+    speed = '1'
     #Hard coded port list to use
     ports = ['20', '21', '22', '23', '25', '53', '67', '68', '69', '80', '107', '110', '115', '121', '123', '137', '138', '139', '143', '161', '389', '443', '445', '631', '636', '992', '1433', '2002', '2222', '3306', '3389', '5432', '5900', '6379']
     for o,a in opts: #Options, arguments
@@ -72,6 +82,12 @@ def scan():
                 ports = f.readlines()
             for port in ports:
                 port.rstrip()
+        elif o in ("-e", "--interface"):
+            #Grabs the interface argument
+            interface = a
+        elif o in ("-s", "--speed"):
+            if int(a) > 0 and int(a) <= 3:
+                speed = a
     host_network = {}
     #For each network block/name, split into the block and the name and put into dictionary
     for host in hosts:
@@ -108,7 +124,10 @@ def scan():
                 count = 0
             else:
                 #Ping Scan for each ip
-                nm.scan(hosts=host, arguments='-n -sP')
+                if interface != '':
+                    nm.scan(hosts=host, arguments='-n -sP -e' + interface)
+                else:
+                    nm.scan(hosts=host, arguments='-n -sP')
                 hosts_list = [(x, nm[x]['status']['state']) for x in nm.all_hosts()]
                 for host, status in hosts_list:
                     #If up, run a port scan on the ip
@@ -124,7 +143,10 @@ def scan():
                             else:
                                 ports_to_scan += ',' + port
                         #Port Scan (will take about 8 minutes for each ip)
-                        nm.scan(hosts=host, arguments='-T1 -p ' + ports_to_scan)
+                        if interface != '':
+                            nm.scan(hosts=host, arguments='-T'+speed+' -e'+interface+' -p ' + ports_to_scan)
+                        else:
+                            nm.scan(hosts=host, arguments='-T'+speed+' -p ' + ports_to_scan)
                         for host in nm.all_hosts():
                             output_file.write('----------------------------------------------------\n')
                             print '----------------------------------------------------'
