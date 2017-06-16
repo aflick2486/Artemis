@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 
+#############################
+# Requires: python 2.7      #
+#           Nmap            #
+#           python-nmap     #
+#############################
+
 ################################################################################
 # A network segmentation testing script that tests to see if it can find the   #
 # host, and if it can, it checks to see which ports (from a list) are open.    #
@@ -24,15 +30,19 @@ usage: %s
 -i [filename], --import_hosts [filename]
     Specify hosts list filename.
 
+-p [filename], --ports_list [filename]
+    Specify ports list filename.
+
 """%(version, sys.argv[0])
 
-
 def scan():
+    #Checks to see if there are no arguments given. Prints usage if there aren't
     if len(sys.argv[1:]) == 0:
         usage()
         sys.exit(0)
     try:
-        opts, args = getopt(sys.argv[1:], 'hi:', ["help", "input="])
+        #Gather the options and arguments given
+        opts, args = getopt(sys.argv[1:], 'hi:p:', ["help", "import=", "ports="])
     except GetoptError as e:
         print e
         usage()
@@ -46,15 +56,22 @@ def scan():
     except:
         print('Unexpected Error:', sys.exc_info()[0])
         sys.exit(2)
-    for o,a in opts:
+    #Hard coded port list to use
+    ports = ['20', '21', '22', '23', '25', '53', '67', '68', '69', '80', '107', '110', '115', '121', '123', '137', '138', '139', '143', '161', '389', '443', '445', '631', '636', '992', '1433', '2002', '2222', '3306', '3389', '5432', '5900', '6379']
+    for o,a in opts: #Options, arguments
         if o in ("-h", "--help"):
             usage()
             sys.exit(0)
-        elif o in ("-i", "--input_hosts"):
+        elif o in ("-i", "--import_hosts"):
             #Read the network blocks (127.0.0.1/30) and names(local-net) from a file
-            hosts_file = a
             with open(a) as f:
                 hosts = f.readlines()
+        elif o in ("-p", "--ports_list"):
+            #Reads the list of ports from a file and overwrites the hard coded list.
+            with open(a) as f:
+                ports = f.readlines()
+            for port in ports:
+                port.rstrip()
     host_network = {}
     #For each network block/name, split into the block and the name and put into dictionary
     for host in hosts:
@@ -63,15 +80,16 @@ def scan():
         host_network[ip] = net
     #Get the path that the script is located in and use that path to open files
     path = os.path.dirname(os.path.realpath('__file__'))
+    #Create a summary file
     summary = open(path + "/logs/summary.log", "w")
-    #For each key, value in the dictionary
+    #Set a count so it doesn't wait 5 minutes before the first network.
     block_count = 1
     for ip, network in host_network.iteritems():
         hosts = []
         #Determine each IP in the network block
         hosts = returnCIDR(ip)
         count = 0
-        #Wait 5 minutes every network block (does wait before first one)
+        #Wait 5 minutes every network block (doesn't wait before first one)
         if block_count > 1:
             print "Waiting 5 minutes.."
             time.sleep(300)
@@ -79,7 +97,8 @@ def scan():
         block_count += 1
         summary.write("Scanned: " + ip + "\n")
         for host in hosts:
-            date = datetime.datetime.utcnow().strftime("%m-%d-%YT%H:%M:%SZ")
+            #Grab the timestamp for the scan
+            date = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
             print "Scanning Host: " + host + "\nFrom Network: " + network + "\nTimestamp: " + date + "\n"
             #If more than 10 ips have been scanned, then wait 1 minute
             if count > 10:
@@ -88,20 +107,18 @@ def scan():
                 print "Continuing.."
                 count = 0
             else:
-                #Ping Scan
-                #Scan each IP
+                #Ping Scan for each ip
                 nm.scan(hosts=host, arguments='-n -sP')
                 hosts_list = [(x, nm[x]['status']['state']) for x in nm.all_hosts()]
                 for host, status in hosts_list:
                     #If up, run a port scan on the ip
                     if status == 'up':
+                        #Set the output file path and open it for writing
                         output = path+"/logs/"+network+"_"+date+"_OPEN.log"
                         output_file = open(output, "w")
-                        with open(path + '/ports_to_scan.txt') as f:
-                            ports = f.readlines()
                         ports_to_scan = ''
+                        #Add each port into a string to pass to nmap
                         for port in ports:
-                            port = port.rstrip()
                             if ports_to_scan == '':
                                 ports_to_scan += port
                             else:
@@ -134,6 +151,7 @@ def scan():
                 count += 1
         summary.write("-------------------------------------\n")
     summary.close()
+
 #Turn the ip into binary
 def ip2bin(ip):
     b = ""
