@@ -1,4 +1,4 @@
-# Network-Segmentation
+# Artemis
 A script to test network segmentation.
 
 ## Requirements
